@@ -123,6 +123,47 @@ def clean_products():
     print(f"Final records: {len(df)}")
 
     return df
+
+# -------------------------------
+# SALES TRANSFORM
+# -------------------------------
+
+SALES_FILE = os.path.join(DATA_DIR, "sales_raw.csv")
+
+
+def clean_sales():
+    print("\n🔹 Cleaning sales data...")
+
+    df = pd.read_csv(SALES_FILE)
+
+    initial_count = len(df)
+
+    # Remove duplicate transactions
+    df = df.drop_duplicates(subset=["transaction_id"])
+    duplicates_removed = initial_count - len(df)
+
+    # Remove rows with missing customer_id or product_id
+    missing_customer = df["customer_id"].isna().sum()
+    missing_product = df["product_id"].isna().sum()
+
+    df = df.dropna(subset=["customer_id", "product_id"])
+
+    # Standardize transaction_date
+    df["transaction_date"] = pd.to_datetime(
+        df["transaction_date"], errors="coerce", dayfirst=True
+    ).dt.strftime("%Y-%m-%d")
+
+    print("✅ Sales cleaned successfully")
+    print(f"Initial records: {initial_count}")
+    print(f"Duplicates removed: {duplicates_removed}")
+    print(f"Missing customer IDs removed: {missing_customer}")
+    print(f"Missing product IDs removed: {missing_product}")
+    print(f"Final records: {len(df)}")
+
+    return df
+
+
 if __name__ == "__main__":
     customers_df = clean_customers()
     products_df = clean_products()
+    sales_df = clean_sales()
