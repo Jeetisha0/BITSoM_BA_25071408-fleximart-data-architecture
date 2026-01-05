@@ -73,5 +73,56 @@ def clean_customers():
     return df
 
 
+# -------------------------------
+# PRODUCTS TRANSFORM
+# -------------------------------
+
+PRODUCTS_FILE = os.path.join(DATA_DIR, "products_raw.csv")
+
+
+def standardize_category(category):
+    if pd.isna(category):
+        return None
+    category = category.strip().lower()
+
+    if category == "electronics":
+        return "Electronics"
+    elif category == "fashion":
+        return "Fashion"
+    elif category == "groceries":
+        return "Groceries"
+    else:
+        return category.title()
+
+
+def clean_products():
+    print("\n🔹 Cleaning products data...")
+
+    df = pd.read_csv(PRODUCTS_FILE)
+
+    initial_count = len(df)
+
+    # Trim spaces in all string columns
+    df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+
+    # Drop rows with missing price
+    missing_prices = df["price"].isna().sum()
+    df = df.dropna(subset=["price"])
+
+    # Fill missing stock with 0
+    missing_stock = df["stock_quantity"].isna().sum()
+    df["stock_quantity"] = df["stock_quantity"].fillna(0).astype(int)
+
+    # Standardize category names
+    df["category"] = df["category"].apply(standardize_category)
+
+    print("✅ Products cleaned successfully")
+    print(f"Initial records: {initial_count}")
+    print(f"Missing prices removed: {missing_prices}")
+    print(f"Missing stock filled: {missing_stock}")
+    print(f"Final records: {len(df)}")
+
+    return df
 if __name__ == "__main__":
-    clean_customers()
+    customers_df = clean_customers()
+    products_df = clean_products()
