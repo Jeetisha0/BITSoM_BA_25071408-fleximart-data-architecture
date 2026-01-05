@@ -1,31 +1,36 @@
 # etl_pipeline.py
-# Part 1: ETL Pipeline for FlexiMart
-# Step 2: TRANSFORM - Clean Customers Data
+# FlexiMart - Part 1 ETL Pipeline
+# EXTRACT + TRANSFORM + DATA QUALITY REPORT
 
 import pandas as pd
 import os
 import re
 
 # -------------------------------
-# Setup paths safely
+# PATH SETUP (SAFE & PORTABLE)
 # -------------------------------
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 
 CUSTOMERS_FILE = os.path.join(DATA_DIR, "customers_raw.csv")
+PRODUCTS_FILE = os.path.join(DATA_DIR, "products_raw.csv")
+SALES_FILE = os.path.join(DATA_DIR, "sales_raw.csv")
 
+REPORT_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "data_quality_report.txt"
+)
+
+# -------------------------------
+# HELPER FUNCTIONS
+# -------------------------------
 
 def standardize_phone(phone):
-    """Convert phone numbers to +91-XXXXXXXXXX format"""
     if pd.isna(phone):
         return None
-
     phone = str(phone).strip()
-
-    # Remove all non-digit characters
     digits = re.sub(r"\D", "", phone)
 
-    # Remove leading country code or zero
     if digits.startswith("91") and len(digits) > 10:
         digits = digits[-10:]
     elif digits.startswith("0") and len(digits) > 10:
@@ -35,49 +40,6 @@ def standardize_phone(phone):
         return f"+91-{digits}"
 
     return None
-
-
-def clean_customers():
-    print("🔹 Cleaning customers data...")
-
-    df = pd.read_csv(CUSTOMERS_FILE)
-
-    initial_count = len(df)
-
-    # Trim spaces
-    df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
-
-    # Drop duplicate customers
-    df = df.drop_duplicates(subset=["customer_id"])
-
-    duplicates_removed = initial_count - len(df)
-
-    # Drop rows with missing email (email is NOT NULL)
-    missing_emails = df["email"].isna().sum()
-    df = df.dropna(subset=["email"])
-
-    # Standardize phone numbers
-    df["phone"] = df["phone"].apply(standardize_phone)
-
-    # Standardize registration_date
-    df["registration_date"] = pd.to_datetime(
-        df["registration_date"], errors="coerce", dayfirst=True
-    ).dt.strftime("%Y-%m-%d")
-
-    print("✅ Customers cleaned successfully")
-    print(f"Initial records: {initial_count}")
-    print(f"Duplicates removed: {duplicates_removed}")
-    print(f"Missing emails removed: {missing_emails}")
-    print(f"Final records: {len(df)}")
-
-    return df
-
-
-# -------------------------------
-# PRODUCTS TRANSFORM
-# -------------------------------
-
-PRODUCTS_FILE = os.path.join(DATA_DIR, "products_raw.csv")
 
 
 def standardize_category(category):
@@ -91,79 +53,131 @@ def standardize_category(category):
         return "Fashion"
     elif category == "groceries":
         return "Groceries"
-    else:
-        return category.title()
+    return category.title()
 
+
+# -------------------------------
+# CUSTOMERS TRANSFORM
+# -------------------------------
+
+def clean_customers():
+    print("🔹 Cleaning customers data...")
+    df = pd.read_csv(CUSTOMERS_FILE)
+
+    initial_count = len(df)
+
+    df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+    df = df.drop_duplicates(subset=["customer_id"])
+    duplicates_removed = initial_count - len(df)
+
+    missing_emails = df["email"].isna().sum()
+    df = df.dropna(subset=["email"])
+
+    df["phone"] = df["phone"].apply(standardize_phone)
+
+    df["registration_date"] = pd.to_datetime(
+        df["registration_date"], errors="coerce", dayfirst=True
+    ).dt.strftime("%Y-%m-%d")
+
+    print(f"Final customer records: {len(df)}")
+
+    report = {
+        "file": "customers_raw.csv",
+        "initial": initial_count,
+        "duplicates_removed": duplicates_removed,
+        "missing_values_handled": missing_emails,
+        "final": len(df)
+    }
+
+    return df, report
+
+
+# -------------------------------
+# PRODUCTS TRANSFORM
+# -------------------------------
 
 def clean_products():
     print("\n🔹 Cleaning products data...")
-
     df = pd.read_csv(PRODUCTS_FILE)
 
     initial_count = len(df)
 
-    # Trim spaces in all string columns
     df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
 
-    # Drop rows with missing price
     missing_prices = df["price"].isna().sum()
     df = df.dropna(subset=["price"])
 
-    # Fill missing stock with 0
     missing_stock = df["stock_quantity"].isna().sum()
     df["stock_quantity"] = df["stock_quantity"].fillna(0).astype(int)
 
-    # Standardize category names
     df["category"] = df["category"].apply(standardize_category)
 
-    print("✅ Products cleaned successfully")
-    print(f"Initial records: {initial_count}")
-    print(f"Missing prices removed: {missing_prices}")
-    print(f"Missing stock filled: {missing_stock}")
-    print(f"Final records: {len(df)}")
+    print(f"Final product records: {len(df)}")
 
-    return df
+    report = {
+        "file": "products_raw.csv",
+        "initial": initial_count,
+        "duplicates_removed": 0,
+        "missing_values_handled": missing_prices + missing_stock,
+        "final": len(df)
+    }
+
+    return df, report
+
 
 # -------------------------------
 # SALES TRANSFORM
 # -------------------------------
 
-SALES_FILE = os.path.join(DATA_DIR, "sales_raw.csv")
-
-
 def clean_sales():
     print("\n🔹 Cleaning sales data...")
-
     df = pd.read_csv(SALES_FILE)
 
     initial_count = len(df)
 
-    # Remove duplicate transactions
     df = df.drop_duplicates(subset=["transaction_id"])
     duplicates_removed = initial_count - len(df)
 
-    # Remove rows with missing customer_id or product_id
     missing_customer = df["customer_id"].isna().sum()
     missing_product = df["product_id"].isna().sum()
 
     df = df.dropna(subset=["customer_id", "product_id"])
 
-    # Standardize transaction_date
     df["transaction_date"] = pd.to_datetime(
         df["transaction_date"], errors="coerce", dayfirst=True
     ).dt.strftime("%Y-%m-%d")
 
-    print("✅ Sales cleaned successfully")
-    print(f"Initial records: {initial_count}")
-    print(f"Duplicates removed: {duplicates_removed}")
-    print(f"Missing customer IDs removed: {missing_customer}")
-    print(f"Missing product IDs removed: {missing_product}")
-    print(f"Final records: {len(df)}")
+    print(f"Final sales records: {len(df)}")
 
-    return df
+    report = {
+        "file": "sales_raw.csv",
+        "initial": initial_count,
+        "duplicates_removed": duplicates_removed,
+        "missing_values_handled": missing_customer + missing_product,
+        "final": len(df)
+    }
 
+    return df, report
+
+
+# -------------------------------
+# MAIN EXECUTION
+# -------------------------------
 
 if __name__ == "__main__":
-    customers_df = clean_customers()
-    products_df = clean_products()
-    sales_df = clean_sales()
+    customers_df, cust_report = clean_customers()
+    products_df, prod_report = clean_products()
+    sales_df, sales_report = clean_sales()
+
+    with open(REPORT_FILE, "w") as f:
+        f.write("FlexiMart Data Quality Report\n")
+        f.write("=" * 35 + "\n\n")
+
+        for r in [cust_report, prod_report, sales_report]:
+            f.write(f"File: {r['file']}\n")
+            f.write(f"Records processed: {r['initial']}\n")
+            f.write(f"Duplicates removed: {r.get('duplicates_removed', 0)}\n")
+            f.write(f"Missing values handled: {r.get('missing_values_handled', 0)}\n")
+            f.write(f"Records loaded: {r['final']}\n\n")
+
+    print("\n📄 Data quality report generated successfully")
