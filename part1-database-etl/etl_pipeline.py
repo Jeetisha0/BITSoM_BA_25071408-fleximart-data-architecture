@@ -6,6 +6,18 @@ import pandas as pd
 import os
 import re
 
+import mysql.connector
+
+# -------------------------------
+# MYSQL DATABASE CONFIG
+# -------------------------------
+DB_CONFIG = {
+    "host": "localhost",
+    "user": "root",
+    "password": "Jeet@079",
+    "database": "fleximart"
+}
+
 # -------------------------------
 # PATH SETUP (SAFE & PORTABLE)
 # -------------------------------
@@ -161,13 +173,88 @@ def clean_sales():
 
 
 # -------------------------------
-# MAIN EXECUTION
+# CLEAR TABLES (SAFE RE-RUN)
 # -------------------------------
+
+def clear_tables():
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+
+    cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
+    cursor.execute("TRUNCATE TABLE order_items;")
+    cursor.execute("TRUNCATE TABLE orders;")
+    cursor.execute("TRUNCATE TABLE customers;")
+    cursor.execute("TRUNCATE TABLE products;")
+    cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    print("🧹 Existing tables cleared")
+# -------------------------------
+# LOAD DATA INTO MYSQL
+# -------------------------------
+
+def load_customers(df):
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+
+    sql = """
+    INSERT INTO customers
+    (first_name, last_name, email, phone, city, registration_date)
+    VALUES (%s, %s, %s, %s, %s, %s)
+    """
+
+    for _, row in df.iterrows():
+        cursor.execute(sql, (
+            row["first_name"],
+            row["last_name"],
+            row["email"],
+            None if pd.isna(row["phone"]) else row["phone"],
+            None if pd.isna(row["city"]) else row["city"],
+            None if pd.isna(row["registration_date"]) else row["registration_date"]
+        ))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    print("✅ Customers loaded into MySQL")
+
+def load_products(df):
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+
+    sql = """
+    INSERT INTO products
+    (product_name, category, price, stock_quantity)
+    VALUES (%s, %s, %s, %s)
+    """
+
+    for _, row in df.iterrows():
+        cursor.execute(sql, (
+            row["product_name"],
+            row["category"],
+            float(row["price"]),
+            int(row["stock_quantity"])
+        ))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    print("✅ Products loaded into MySQL")
+
 
 if __name__ == "__main__":
     customers_df, cust_report = clean_customers()
     products_df, prod_report = clean_products()
     sales_df, sales_report = clean_sales()
+
+    clear_tables()
+    load_customers(customers_df)
+    load_products(products_df)
 
     with open(REPORT_FILE, "w") as f:
         f.write("FlexiMart Data Quality Report\n")
