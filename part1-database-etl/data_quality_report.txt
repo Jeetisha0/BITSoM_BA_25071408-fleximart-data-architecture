@@ -1,21 +1,3 @@
-FlexiMart Data Quality Report
-===================================
-
-File: customers_raw.csv
-Records processed: 26
-Duplicates removed: 1
-Missing values handled: 5
-Records loaded: 20
-
-File: products_raw.csv
-Records processed: 20
-Duplicates removed: 0
-Missing values handled: 4
-Records loaded: 17
-
-File: sales_raw.csv
-Records processed: 41
-Duplicates removed: 1
-Missing values handled: 5
-Records loaded: 35
-
+{'file': 'customers_raw.csv', 'initial': 26, 'duplicates_removed': 1, 'missing_values_handled': np.int64(5), 'final': 20}
+{'file': 'products_raw.csv', 'initial': 20, 'duplicates_removed': 0, 'missing_values_handled': np.int64(4), 'final': 17}
+{'file': 'sales_raw.csv', 'initial': 41, 'duplicates_removed': 1, 'missing_values_handled': np.int64(5), 'final': 25}

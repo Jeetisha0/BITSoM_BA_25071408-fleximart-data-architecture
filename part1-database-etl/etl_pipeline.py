@@ -1,5 +1,5 @@
 # etl_pipeline.py
-# FlexiMart – Part 1 ETL Pipeline (FINAL CLEAN VERSION)
+# FlexiMart – Part 1 ETL Pipeline (FINAL WORKING VERSION)
 
 import pandas as pd
 import os
@@ -44,12 +44,10 @@ def standardize_phone(phone):
     if pd.isna(phone):
         return None
     digits = re.sub(r"\D", "", str(phone))
-
     if digits.startswith("91") and len(digits) > 10:
         digits = digits[-10:]
     elif digits.startswith("0") and len(digits) > 10:
         digits = digits[-10:]
-
     return f"+91-{digits}" if len(digits) == 10 else None
 
 
@@ -57,14 +55,12 @@ def standardize_category(category):
     if pd.isna(category):
         return None
     category = category.strip().lower()
-
     if category == "electronics":
         return "Electronics"
     if category == "fashion":
         return "Fashion"
     if category == "groceries":
         return "Groceries"
-
     return category.title()
 
 # -------------------------------
@@ -143,6 +139,10 @@ def clean_sales():
     df["transaction_date"] = pd.to_datetime(
         df["transaction_date"], errors="coerce", dayfirst=True
     ).dt.strftime("%Y-%m-%d")
+    df = df.dropna(subset=["transaction_date", "status"])
+
+    # CRITICAL FIX: remove NaN quantity & unit_price
+    df = df.dropna(subset=["quantity", "unit_price"])
 
     print(f"Final sales records: {len(df)}")
 
@@ -171,8 +171,7 @@ def clear_tables():
     conn.commit()
     cur.close()
     conn.close()
-
-    print(" Existing tables cleared")
+    print("Existing tables cleared")
 
 # -------------------------------
 # LOAD CUSTOMERS
@@ -189,19 +188,20 @@ def load_customers(df):
 
     for _, row in df.iterrows():
         cur.execute(sql, (
-            row["first_name"],
-            row["last_name"],
-            row["email"],
-            row["phone"],
-            row["city"],
-            row["registration_date"]
-        ))
+    row["first_name"],
+    row["last_name"],
+    row["email"],
+    None if pd.isna(row["phone"]) else row["phone"],
+    None if pd.isna(row["city"]) else row["city"],
+    None if pd.isna(row["registration_date"]) else row["registration_date"]
+))
+
         CUSTOMER_ID_MAP[row["customer_id"]] = cur.lastrowid
 
     conn.commit()
     cur.close()
     conn.close()
-    print("✅ Customers loaded")
+    print("Customers loaded")
 
 # -------------------------------
 # LOAD PRODUCTS
@@ -221,17 +221,18 @@ def load_products(df):
             row["product_name"],
             row["category"],
             float(row["price"]),
-            int(row["stock_quantity"])
+int(row["stock_quantity"]) if not pd.isna(row["stock_quantity"]) else 0
+
         ))
         PRODUCT_ID_MAP[row["product_id"]] = cur.lastrowid
 
     conn.commit()
     cur.close()
     conn.close()
-    print("✅ Products loaded")
+    print("Products loaded")
 
 # -------------------------------
-# LOAD ORDERS + ITEMS
+# LOAD ORDERS & ORDER ITEMS
 # -------------------------------
 def load_orders_and_items(df):
     conn = mysql.connector.connect(**DB_CONFIG)
@@ -250,24 +251,21 @@ def load_orders_and_items(df):
 
     for _, row in df.iterrows():
 
-    # Skip invalid numeric values
-    if pd.isna(row["quantity"]) or pd.isna(row["unit_price"]):
-        continue
+        if row["customer_id"] not in CUSTOMER_ID_MAP:
+            continue
+        if row["product_id"] not in PRODUCT_ID_MAP:
+            continue
 
-    if row["customer_id"] not in CUSTOMER_ID_MAP:
-        continue
+        total = float(row["quantity"] * row["unit_price"])
 
-    if row["product_id"] not in PRODUCT_ID_MAP:
-        continue
-
-    total = float(row["quantity"] * row["unit_price"])
-    
         cur.execute(order_sql, (
-            CUSTOMER_ID_MAP[row["customer_id"]],
-            row["transaction_date"],
-            total,
-            row["status"]
-        ))
+    CUSTOMER_ID_MAP[row["customer_id"]],
+    None if pd.isna(row["transaction_date"]) else row["transaction_date"],
+    total,
+    "Pending" if pd.isna(row["status"]) else row["status"]
+))
+
+
 
         order_id = cur.lastrowid
 
@@ -282,7 +280,7 @@ def load_orders_and_items(df):
     conn.commit()
     cur.close()
     conn.close()
-    print("✅ Orders & order_items loaded")
+    print("Orders & order_items loaded")
 
 # -------------------------------
 # MAIN
