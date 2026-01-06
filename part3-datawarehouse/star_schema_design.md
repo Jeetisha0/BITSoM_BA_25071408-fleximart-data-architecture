@@ -63,3 +63,33 @@
 
 - The star schema design supports drill-down and roll-up operations by separating numeric measures from descriptive attributes. Analysts can easily roll up data by month, quarter, or year, and drill down to specific dates, products, or customers. This structure simplifies analytical queries and improves performance for business intelligence use cases.
 
+## Section 3: Sample Data Flow
+
+**Source Transaction:**  
+Order #101, Customer “John Doe”, Product “Laptop”, Qty: 2, Price: 50000
+
+**Becomes in Data Warehouse:**
+
+**fact_sales**
+- date_key: 20240115  
+- product_key: 5  
+- customer_key: 12  
+- quantity_sold: 2  
+- unit_price: 50000  
+- total_amount: 100000  
+
+**dim_date**
+- date_key: 20240115  
+- full_date: 2024-01-15  
+- month: 1  
+- quarter: Q1  
+
+**dim_product**
+- product_key: 5  
+- product_name: Laptop  
+- category: Electronics  
+
+**dim_customer**
+- customer_key: 12  
+- customer_name: John Doe  
+- city: Mumbai  
