@@ -56,3 +56,10 @@
 - state: State of residence
 - customer_segment: Customer value segment
 
+## Section 2: Design Decisions 
+- The data warehouse is designed at the transaction line-item level to capture the most detailed view of sales activity. This granularity allows analysis at the product, customer, and date level and supports accurate aggregation for reporting. It enables flexibility to drill down from summary reports to individual product-level transactions.
+
+- Surrogate keys are used instead of natural keys to ensure consistency and stability within the data warehouse. Business identifiers such as customer_id or product_id may change in source systems, but surrogate keys remain constant, preventing data integrity issues and improving join performance.
+
+- The star schema design supports drill-down and roll-up operations by separating numeric measures from descriptive attributes. Analysts can easily roll up data by month, quarter, or year, and drill down to specific dates, products, or customers. This structure simplifies analytical queries and improves performance for business intelligence use cases.
+
