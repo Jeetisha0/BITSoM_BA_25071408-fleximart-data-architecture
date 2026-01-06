@@ -6,6 +6,11 @@ USE fleximart;
 
 -- -----------------------------------------------------
 -- Query 1: Customer Purchase History
+-- Business Question:
+-- For each product category, show the category name,
+-- number of different products sold, total quantity sold,
+-- and total revenue generated.
+-- Include only categories with revenue > ₹10,000.
 -- -----------------------------------------------------
 
 SELECT
@@ -25,3 +30,53 @@ HAVING
     AND SUM(oi.subtotal) > 5000
 ORDER BY
     total_spent DESC;
+
+-- -----------------------------------------------------
+-- Query 2: Product Sales Analysis
+-- Business Question:
+-- For each product category, show the category name,
+-- number of different products sold, total quantity sold,
+-- and total revenue generated.
+-- Include only categories with revenue > ₹10,000.
+-- -----------------------------------------------------
+
+SELECT
+    p.category,
+    COUNT(DISTINCT p.product_id) AS num_products,
+    SUM(oi.quantity) AS total_quantity_sold,
+    SUM(oi.subtotal) AS total_revenue
+FROM products p
+JOIN order_items oi
+    ON p.product_id = oi.product_id
+GROUP BY
+    p.category
+HAVING
+    SUM(oi.subtotal) > 10000
+ORDER BY
+    total_revenue DESC;
+
+
+-- -----------------------------------------------------
+-- Query 3: Monthly Sales Trend (2024)
+-- Business Question:
+-- Show monthly sales trends for the year 2024 including
+-- total orders, monthly revenue, and cumulative revenue.
+-- -----------------------------------------------------
+
+SELECT
+    MONTHNAME(o.order_date) AS month_name,
+    COUNT(DISTINCT o.order_id) AS total_orders,
+    SUM(oi.subtotal) AS monthly_revenue,
+    SUM(SUM(oi.subtotal)) OVER (
+        ORDER BY MONTH(o.order_date)
+    ) AS cumulative_revenue
+FROM orders o
+JOIN order_items oi
+    ON o.order_id = oi.order_id
+WHERE
+    YEAR(o.order_date) = 2024
+GROUP BY
+    MONTH(o.order_date),
+    MONTHNAME(o.order_date)
+ORDER BY
+    MONTH(o.order_date);
