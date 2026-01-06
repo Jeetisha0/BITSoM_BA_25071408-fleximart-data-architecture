@@ -1,5 +1,5 @@
 // Use database
-use fleximart_nosql;
+fleximart_nosql;
 
 // Operation 1: Load Data
 // Import products_catalog.json into products collection
